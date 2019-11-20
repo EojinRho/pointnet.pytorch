@@ -90,10 +90,10 @@ for pnt_set in pda_pnt_sets:
     points_tensor = torch.from_numpy(pda_points).float().cuda()
     #print(points_tensor.size())
     points_tensor = points_tensor.transpose(0,1).view(1,3,-1)
-    print(points_tensor.size())
-    print(points_tensor)
-    assert False
-    pda_pred, _, _ = classifier(pda_points)
+    #print(points_tensor.size())
+    #print(points_tensor)
+    #assert False
+    pda_pred, _, _ = classifier(points_tensor)
     #print(pda_pred.cpu.data.numpy())
     pda_predictions.append(pda_pred)
 
