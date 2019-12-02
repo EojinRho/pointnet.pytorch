@@ -88,18 +88,20 @@ points = points.data.numpy()
 pda_pnt_sets = get_point_sets(points,r_samp)
 pnt_indexes = np.arange(len(points))
 
-remove_points = []
+remove_points = np.array([]).astype(int)
 remove_points_loc = []
 remove_pda = []
 for iter_num in range(1000):
     pda_predictions = []
     pda_grid_loc = []
     print("removed points : {}".format(remove_points))
+    print("removed points shape : {}".format(remove_points.shape))
 
     for ind in range(0,len(pda_pnt_sets)):
-        if ind in remove_points:
-            continue
         pnt_set = pda_pnt_sets[ind]
+
+        if remove_points.shape[0] > 0:
+            pnt_set = np.concatenate((pnt_set, remove_points), axis=0)
 
         point_loc = points[ind]
         # choose a random point not in the point set
@@ -120,8 +122,8 @@ for iter_num in range(1000):
     pda_max_point_loc = pda_grid_loc[pda_max_point_ind]
     pda_max_point_sets = pda_pnt_sets[pda_max_point_ind]
 
-    remove_points.append(pda_max_point_sets.to_list())
-    remove_points = list(set(remove_points))
+    remove_points = np.concatenate((remove_points, pda_max_point_sets), axis=0)
+    remove_points = np.unique(remove_points)
     remove_points_loc.append(pda_max_point_loc)
     remove_pda.append(max(pda_predictions))
 
@@ -155,49 +157,3 @@ for iter_num in range(1000):
 
         del fig, ax, X, Y, Z, X_ori, Y_ori, Z_ori
         gc.collect()
-
-
-
-"""
-    pda_max_point_ind = pda_predictions.index(max(pda_predictions))
-    pda_max_point_loc = pda_grid_loc[pda_max_point_ind]
-    pda_max_point_sets = pda_pnt_sets[pda_max_point_ind]
-
-    remove_points = np.concatenate((remove_points, pda_max_point_sets), axis=0)
-    remove_points = np.unique(remove_points)
-    remove_points_loc.append(pda_max_point_loc)
-    remove_pda.append(max(pda_predictions))
-
-    fig = plt.figure()
-
-    ax = fig.gca(projection='3d')
-
-    remove_points_np = np.array(remove_points_loc)
-    X = remove_points_np[:, 0]
-    Y = remove_points_np[:, 1]
-    Z = remove_points_np[:, 2]
-
-    pl = ax.scatter(X, Y, Z, c=reversed(np.arange(len(remove_pda))), alpha=1.0, cmap='coolwarm', s=50)  # 150 when 0.1
-
-    fig.colorbar(pl)
-
-    X_ori = points[:, 0]
-    Y_ori = points[:, 1]
-    Z_ori = points[:, 2]
-
-    ax.scatter(X_ori, Y_ori, Z_ori, alpha=0.01, c='g')
-
-    ax.set_zlim(-1, 1)
-    ax.set_xlim(-1, 1)
-    ax.set_ylim(-1, 1)
-    # plt.show(fig)
-    print("Current status : {}".format(iter_num))
-    plt.savefig("3d_"+str(iter_num))
-
-
-#print("pda_grid_loc shape : {}".format(pda_grid_loc.shape))
-#print("len : {}".format(len(pda_predictions)))
-#print(pda_predictions)
-#assert False
-
-"""

@@ -24,6 +24,12 @@ def get_point_sets(points,r_samp):
     #assert False
     return pnt_sets
 
+def check_loc(point, point_list):
+    for point_tmp in point_list:
+        if point == point_tmp:
+            return True
+    return False
+
 if not os.path.exists("./logs"):
     os.mkdir("./logs")
 
@@ -93,20 +99,24 @@ pda_pnt_sets = get_point_sets(points,r_samp)
 pnt_indexes = np.arange(len(points))
 #assert False
 
-remove_points = []
 remove_points_loc = []
 remove_pda = []
 for iter_num in range(1000):
     pda_predictions = []
     pda_grid_loc = []
-    print("removed points : {}".format(remove_points))
+    print("removed points : {}".format(remove_points_loc))
 
+    best_pda = - 1.0
+    best_pda_loc = None
     for ind in range(0,len(pda_pnt_sets)):
-        if ind in remove_points:
-            continue
         pnt_set = pda_pnt_sets[ind]
-
         point_loc = points[ind]
+
+        print(point_loc)
+        print(remove_points_loc)
+        if check_loc(point_loc, remove_points_loc):
+            print(point_loc)
+            continue
         # choose a random point not in the point set
         rand_pnt = np.random.choice(np.delete(pnt_indexes, pnt_set))
         # set all points in the point set to the value of the random point
@@ -118,16 +128,13 @@ for iter_num in range(1000):
 
         pda_pred, _, _ = classifier(points_tensor)
         pda_pred_output = softmax(pda_pred).cpu().data.numpy()[0][base_pred_ind]
-        pda_predictions.append(base_output-pda_pred_output)
-        pda_grid_loc.append(point_loc)
 
-    pda_max_point_ind = pda_predictions.index(max(pda_predictions))
-    pda_max_point_loc = pda_grid_loc[pda_max_point_ind]
-    pda_max_point_sets = pda_pnt_sets[pda_max_point_ind]
+        if (base_output-pda_pred_output) >= best_pda:
+            best_pda = (base_output-pda_pred_output)
+            best_pda_loc = point_loc
 
-    remove_points.append(pda_max_point_ind)
-    remove_points_loc.append(pda_max_point_loc)
-    remove_pda.append(max(pda_predictions))
+    remove_points_loc.append(best_pda_loc)
+    remove_pda.append(best_pda)
 
     if iter_num % 20 == 0:
 

@@ -114,18 +114,23 @@ pda_pnt_sets = get_point_sets(points,samp_grid,r_samp)
 pnt_indexes = np.arange(len(points))
 #assert False
 
-remove_points = []
+remove_points = np.array([]).astype(int)
 remove_points_loc = []
 remove_pda = []
-
 for iter_num in range(1000):
     pda_predictions = []
     pda_grid_loc = []
     print("removed points : {}".format(remove_points))
+    print("removed points shape : {}".format(remove_points.shape))
+
     for ind in range(0,len(pda_pnt_sets)):
-        if ind in remove_points:
-            continue
+        #print(len(pda_pnt_sets))
+        #assert False
         pnt_set = pda_pnt_sets[ind]
+
+        if remove_points.shape[0] > 0:
+            pnt_set = np.concatenate((pnt_set, remove_points), axis=0)
+
         grid_loc = samp_grid[ind]
         # choose a random point not in the point set
         rand_pnt = np.random.choice(np.delete(pnt_indexes, pnt_set))
@@ -142,9 +147,10 @@ for iter_num in range(1000):
 
     pda_max_point_ind = pda_predictions.index(max(pda_predictions))
     pda_max_point_loc = pda_grid_loc[pda_max_point_ind]
-    #pda_max_point_sets = pda_pnt_sets[pda_max_point_ind]
+    pda_max_point_sets = pda_pnt_sets[pda_max_point_ind]
 
-    remove_points.append(pda_max_point_ind)
+    remove_points = np.concatenate((remove_points, pda_max_point_sets), axis=0)
+    remove_points = np.unique(remove_points)
     remove_points_loc.append(pda_max_point_loc)
     remove_pda.append(max(pda_predictions))
 
