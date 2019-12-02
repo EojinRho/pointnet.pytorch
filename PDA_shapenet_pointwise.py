@@ -6,37 +6,15 @@ import torch
 import torch.nn as nn
 import torch.nn.parallel
 import torch.utils.data
+from sklearn.preprocessing import normalize
 
-
-def create_sampling_grid(points,r_samp):
-    # create sampling 1d sampling points for each dimension
-    #print(type(points))
-    x_max,y_max,z_max = np.max(points,axis=0)
-    #print(x_max)
-    #print(y_max)
-    #print(z_max)
-    x_min,y_min,z_min = np.min(points,axis=0)
-    x_samp_pnts = np.arange(x_min+r_samp,x_max,r_samp)
-    y_samp_pnts = np.arange(y_min+r_samp,y_max,r_samp)
-    z_samp_pnts = np.arange(z_min+r_samp,z_max,r_samp)
-
-    # create 3d grid based on 1d sampling points
-    #print(x_min)
-    #print(y_min)
-    #print(z_min)
-    #assert False
-    Xgrid,Ygrid,Zgrid = np.meshgrid(x_samp_pnts,y_samp_pnts,z_samp_pnts)
-    samp_grid = np.asarray([Xgrid.flatten(),Ygrid.flatten(),Zgrid.flatten()]).T
-    #print(samp_grid)
-    #print(samp_grid.shape)
-    #assert False
-    return samp_grid
-
-def get_point_sets(points,sampling_grid,r_samp):
-    dist_mat = cdist(sampling_grid,points,'euclidean')
+def get_point_sets(points,r_samp):
+    dist_mat = cdist(points,points,'euclidean')
     #print(dist_mat.shape)
     #assert False
-    pnt_sets = [np.nonzero(dist<r_samp)[0] for dist in dist_mat]
+    pnt_sets = []
+    for dist in dist_mat:
+        pnt_sets.append(np.nonzero(dist<r_samp)[0])
     #print(len(pnt_sets))
     #assert False
     return pnt_sets
@@ -91,10 +69,10 @@ r_samp=0.05
 points = points.transpose(1,2).view(-1,3)
 points = points.data.numpy()
 
-samp_grid = create_sampling_grid(points,r_samp)
+#samp_grid = create_sampling_grid(points,r_samp)
 #print(samp_grid)
 #assert False
-pda_pnt_sets = get_point_sets(points,samp_grid,r_samp)
+pda_pnt_sets = get_point_sets(points,r_samp)
 #print(pda_pnt_sets)
 pnt_indexes = np.arange(len(points))
 #assert False
@@ -104,7 +82,7 @@ pda_predictions = []
 pda_grid_loc = []
 for ind in range(0,len(pda_pnt_sets)):
     pnt_set = pda_pnt_sets[ind]
-    grid_loc = samp_grid[ind]
+    point_loc = points[ind]
     # choose a random point not in the point set
     rand_pnt = np.random.choice(np.delete(pnt_indexes, pnt_set))
     # set all points in the point set to the value of the random point
@@ -121,20 +99,19 @@ for ind in range(0,len(pda_pnt_sets)):
     #print(pda_pred.cpu.data.numpy())
     pda_pred_output = softmax(pda_pred).cpu().data.numpy()[0][base_pred_ind]
     #print("PDA : {}".format(base_output-pda_pred_output))
-    if base_output - pda_pred_output > 0:
-        pda_predictions.append(base_output-pda_pred_output)
-        pda_grid_loc.append(grid_loc)
+    #if base_output - pda_pred_output > 0:
+    pda_predictions.append(base_output-pda_pred_output)
+    pda_grid_loc.append(point_loc)
 
 pda_grid_loc = np.array(pda_grid_loc)
 
 print("pda_grid_loc shape : {}".format(pda_grid_loc.shape))
-print("len : {}".format(pda_predictions))
-print(pda_predictions)
+print("len : {}".format(len(pda_predictions)))
+#print(pda_predictions)
 #assert False
 
-
-
 import matplotlib.pyplot as plt
+plt.switch_backend('agg')
 from mpl_toolkits.mplot3d import Axes3D
 
 fig = plt.figure()
@@ -145,15 +122,19 @@ X= pda_grid_loc[:,0]
 Y= pda_grid_loc[:,1]
 Z= pda_grid_loc[:,2]
 
-ax.scatter(X,Y,Z, c=np.array(pda_predictions), cmap='coolwarm', s=50) # 150 when 0.1
+pl = ax.scatter(X,Y,Z, c=np.array(pda_predictions), alpha = 0.1, cmap='coolwarm', s=50) # 150 when 0.1
 
+"""
 X_ori = points[:,0]
 Y_ori = points[:,1]
 Z_ori = points[:,2]
 
 ax.scatter(X_ori,Y_ori,Z_ori, alpha = 0.05, c='g')
+"""
+fig.colorbar(pl)
 
 ax.set_zlim(-1,1)
 ax.set_xlim(-1,1)
 ax.set_ylim(-1,1)
-plt.show(fig)
+#plt.show(fig)
+plt.savefig("3d")
