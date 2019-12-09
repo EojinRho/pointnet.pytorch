@@ -6,6 +6,12 @@ import torch
 import torch.nn as nn
 import torch.nn.parallel
 import torch.utils.data
+import os
+from datetime import datetime
+import gc
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
+plt.switch_backend('agg')
 
 
 def create_sampling_grid(points,r_samp):
@@ -43,7 +49,7 @@ def get_point_sets(points,sampling_grid,r_samp):
 
 
 # load the shapenet dataset
-model_pth = './utils/cls/cls_model_49.pth'
+model_pth = './utils/cls/cls_model_20.pth'
 num_points = 2500
 test_dataset = ShapeNetDataset(
     root='/home/eojin/PycharmProject/pointnet.pytorch/shapenetcore_partanno_segmentation_benchmark_v0',
@@ -54,7 +60,7 @@ test_dataset = ShapeNetDataset(
 num_classes = len(test_dataset.classes)
 
 testdataloader = torch.utils.data.DataLoader(
-    test_dataset, batch_size=1, shuffle=False)
+    test_dataset, batch_size=1, shuffle=True)
 
 
 # initialize pointnet classifier with pretrained weights
@@ -64,7 +70,15 @@ classifier.load_state_dict(torch.load(model_pth))
 classifier.eval()
 
 # get one batch of the test dataloader
-_, (points, target) = next(enumerate(testdataloader, 0))
+points = None
+target = None
+for _, (points_tmp, target_tmp) in enumerate(testdataloader, 0):
+    #print(target_tmp[:, 0].cpu().data.numpy()[0])
+    if target_tmp[:, 0].cpu().data.numpy()[0] == 0:
+        points = points_tmp
+        target = target_tmp
+        break
+#_, (points, target) = next(enumerate(testdataloader, 0))
 target = target[:, 0]
 points = points.transpose(2, 1)
 
@@ -86,15 +100,17 @@ print("Predicted prob  : {}".format(base_output))
 
 
 # create sampling grid and extract PDA point sets
-r_samp=0.05
+r_grid=0.2
+r_samp=0.2
 
 points = points.transpose(1,2).view(-1,3)
 points = points.data.numpy()
 
-samp_grid = create_sampling_grid(points,r_samp)
+samp_grid = create_sampling_grid(points,r_grid)
 #print(samp_grid)
 #assert False
 pda_pnt_sets = get_point_sets(points,samp_grid,r_samp)
+#[pnt_set for pnt_set in pda_pnt_sets if pnt_set.shape[0] > 0]
 #print(pda_pnt_sets)
 pnt_indexes = np.arange(len(points))
 #assert False
@@ -104,6 +120,10 @@ pda_predictions = []
 pda_grid_loc = []
 for ind in range(0,len(pda_pnt_sets)):
     pnt_set = pda_pnt_sets[ind]
+
+    if len(pnt_set) == 0:
+        continue
+
     grid_loc = samp_grid[ind]
     # choose a random point not in the point set
     rand_pnt = np.random.choice(np.delete(pnt_indexes, pnt_set))
@@ -121,21 +141,15 @@ for ind in range(0,len(pda_pnt_sets)):
     #print(pda_pred.cpu.data.numpy())
     pda_pred_output = softmax(pda_pred).cpu().data.numpy()[0][base_pred_ind]
     #print("PDA : {}".format(base_output-pda_pred_output))
-    if base_output - pda_pred_output > 0:
-        pda_predictions.append(base_output-pda_pred_output)
-        pda_grid_loc.append(grid_loc)
+    pda_predictions.append(base_output-pda_pred_output)
+    pda_grid_loc.append(grid_loc)
 
 pda_grid_loc = np.array(pda_grid_loc)
 
-print("pda_grid_loc shape : {}".format(pda_grid_loc.shape))
-print("len : {}".format(pda_predictions))
-print(pda_predictions)
+#print("pda_grid_loc shape : {}".format(pda_grid_loc.shape))
+#print("len : {}".format(pda_predictions))
+#print(pda_predictions)
 #assert False
-
-
-
-import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
 
 fig = plt.figure()
 
@@ -145,15 +159,32 @@ X= pda_grid_loc[:,0]
 Y= pda_grid_loc[:,1]
 Z= pda_grid_loc[:,2]
 
-ax.scatter(X,Y,Z, c=np.array(pda_predictions), cmap='coolwarm', s=50) # 150 when 0.1
+pl = ax.scatter(X,Y,Z, c=np.array(pda_predictions), cmap='coolwarm', alpha = 0.2) # 150 when 0.1
+
+fig.colorbar(pl)
 
 X_ori = points[:,0]
 Y_ori = points[:,1]
 Z_ori = points[:,2]
 
-ax.scatter(X_ori,Y_ori,Z_ori, alpha = 0.05, c='g')
+#ax.scatter(X_ori,Y_ori,Z_ori, alpha = 0.05, c='g')
 
-ax.set_zlim(-1,1)
-ax.set_xlim(-1,1)
-ax.set_ylim(-1,1)
-plt.show(fig)
+x_max,y_max,z_max = np.max(points,axis=0)
+x_min,y_min,z_min = np.min(points,axis=0)
+
+ax.set_xlim(-0.25+x_min,0.25+x_max)
+ax.set_ylim(-0.25+y_min,0.25+y_max)
+ax.set_zlim(-0.25+z_min,0.25+z_max)
+#plt.show(fig)
+
+if not os.path.exists("./logs"):
+    os.mkdir("./logs")
+
+log_path = "./logs/" + datetime.now().strftime('%b-%d_%H:%M:%S')
+
+try:
+    os.mkdir(log_path)
+except FileExistsError:
+    print("Directory " , log_path ,  " already exists")
+
+plt.savefig(log_path + "/3d_" + "PDA_shapenet")
