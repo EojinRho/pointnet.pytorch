@@ -64,7 +64,7 @@ def main(args):
     target = None
     for i, (points_tmp, target_tmp) in enumerate(testdataloader, 0):
         #print(target_tmp[:, 0].cpu().data.numpy()[0])
-
+        """
         if target_tmp[:, 0].cpu().data.numpy()[0] == 6:
             points = points_tmp
             target = target_tmp
@@ -75,7 +75,6 @@ def main(args):
             points = points_tmp
             target = target_tmp
             break
-        """
 
     #_, (points, target) = next(enumerate(testdataloader, 0))
     target = target[:, 0]
@@ -144,8 +143,18 @@ def main(args):
     #print(list[pda_pnt_vals])
     #top_idx = np.argsort(pda_pnt_vals)[-1 * num_points_iter:]
     num_iter = 0
-    rand_ind = np.arange(2500)
+    rand_ind = np.copy(pnt_idxs)
     np.random.shuffle(rand_ind)
+
+    if not os.path.exists("./logs"):
+        os.mkdir("./logs")
+
+    log_path = "./logs/" + datetime.now().strftime('%b-%d_%H:%M:%S')
+
+    try:
+        os.mkdir(log_path)
+    except FileExistsError:
+        print("Directory ", log_path, " already exists")
 
     #assert False
     while True:
@@ -169,7 +178,7 @@ def main(args):
 
         changed_index = np.argmax(pda_pred_val)
         print("{} predicted index : {}".format(num_iter, changed_index))
-        if base_pred_ind != changed_index:
+        if True:
 
             pda_diff = []
             for pnt_set in pda_pnt_sets:
@@ -202,29 +211,16 @@ def main(args):
             x_max, y_max, z_max = np.max(points, axis=0)
             x_min, y_min, z_min = np.min(points, axis=0)
 
-            ax.set_xlim(-0.25 + x_min, 0.25 + x_max)
-            ax.set_ylim(-0.25 + y_min, 0.25 + y_max)
-            ax.set_zlim(-0.25 + z_min, 0.25 + z_max)
+            #ax.set_xlim(-0.25 + x_min, 0.25 + x_max)
+            #ax.set_ylim(-0.25 + y_min, 0.25 + y_max)
+            #ax.set_zlim(-0.25 + z_min, 0.25 + z_max)
 
             img3d = ax.scatter(points[points_left, 0], points[points_left, 1], points[points_left, 2], s=20, c=pda_pnt_vals_left,
                                cmap=plt.cm.get_cmap('coolwarm'), vmin=min(pda_pnt_vals_left), vmax=max(pda_pnt_vals_left))
             fig.colorbar(img3d, shrink=0.7)
             plt.tight_layout()
 
-            if not os.path.exists("./logs"):
-                os.mkdir("./logs")
-
-            log_path = "./logs/" + datetime.now().strftime('%b-%d_%H:%M:%S')
-
-            try:
-                os.mkdir(log_path)
-            except FileExistsError:
-                print("Directory ", log_path, " already exists")
-
-            plt.savefig(log_path + "/3d_" + "PDA_shapenet_iter")
-            break
-
-
+            plt.savefig(log_path + "/3d_" + "PDA_shapenet_iter" + str(num_iter))
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Input the args")
